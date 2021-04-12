@@ -1,0 +1,63 @@
+package json_diff
+
+import (
+	"fmt"
+)
+
+func max(a, b int) int {
+	if a < b {
+		return b
+	}
+	return a
+}
+
+func printDP(dp [][]int) {
+	for _, i := range dp {
+		fmt.Println(i)
+	}
+	fmt.Println()
+}
+
+func longestCommonSubsequence(first, second []*JsonNode) []*JsonNode {
+	line := len(first) + 1
+	column := len(second) + 1
+	if line == 1 || column == 1 {
+		return make([]*JsonNode, 0)
+	}
+	dp := make([][]int, line)
+	for i := 0; i < line; i++ {
+		dp[i] = make([]int, column)
+	}
+	for i := 1; i < line; i++ {
+		for j := 1; j < column; j++ {
+			if first[i-1].Equal(second[j-1]) {
+				dp[i][j] = dp[i-1][j-1] + 1
+			} else {
+				dp[i][j] = max(dp[i-1][j], dp[i][j-1])
+			}
+		}
+	}
+	// printDP(dp)
+	start, end := len(first), len(second)
+	cur := dp[start][end] - 1
+	res := make([]*JsonNode, cur+1)
+	for cur >= 0 {
+		if end >= 0 && start >= 0 &&
+			dp[start][end] == dp[start][end-1] &&
+			dp[start][end] == dp[start-1][end] {
+			start--
+			end--
+		} else if end >= 0 && dp[start][end] == dp[start][end-1] {
+			end--
+		} else if start >= 0 && dp[start][end] == dp[start-1][end] {
+			start--
+		} else {
+			res[cur] = first[start-1]
+			cur--
+			start--
+			end--
+		}
+	}
+
+	return res
+}

@@ -1,0 +1,127 @@
+{
+  "name": "merge-smoke",
+  "cases": [
+    {
+      "name": "add-smoke",
+      "src": {
+        "A": 1,
+        "B": [1]
+      },
+      "diff": [
+        {"op": "add", "path": "/C", "value": "2"},
+        {"op": "add", "path": "/D", "value": {"DA": 1}},
+        {"op": "add", "path": "/B/1", "value": "2"},
+        {"op": "add", "path": "/B/2", "value": [21, 22]},
+        {"op": "add", "path": "/B/3", "value": {"B3A": 1}}
+      ],
+      "hope": {
+        "A": 1,
+        "B": [1, "2", [21, 22], {"B3A": 1}],
+        "C": "2",
+        "D": {"DA":  1}
+      }
+    },
+    {
+      "name": "remove-smoke",
+      "src": {
+        "A": 1,
+        "B": [1, 2, 3, {"BA": 1, "BB": 2}],
+        "C": 2,
+        "D": {
+          "DA": 1,
+          "DB": 2
+        }
+      },
+      "diff": [
+        {"op": "remove", "path": "/C"},
+        {"op": "remove", "path": "/B/1"},
+        {"op": "remove", "path": "/B/2/BA"},
+        {"op": "remove", "path": "/D/DB"}
+      ],
+      "hope": {
+        "A": 1,
+        "B": [1, 3, {"BB": 2}],
+        "D": {
+          "DA": 1
+        }
+      }
+    },
+    {
+      "name": "replace-smoke",
+      "src": {
+        "A": 1,
+        "B": [1, 2, 3],
+        "D": {
+          "DA": 1,
+          "DB": 2
+        }
+      },
+      "diff": [
+        {"op": "replace", "path": "/A", "value": 3},
+        {"op": "replace", "path": "/B/1", "value": 4},
+        {"op": "replace", "path": "/D/DB","value": {"DBA": "1"}}
+      ],
+      "hope": {
+        "A": 3,
+        "B": [1, 4, 3],
+        "D": {
+          "DA": 1,
+          "DB": {
+            "DBA": "1"
+          }
+        }
+      }
+    },
+    {
+      "name": "copy-smoke",
+      "src": {
+        "A": 1,
+        "B": [1, 2, 3, {"BA": 1}],
+        "C": {
+          "CA": 1,
+          "CB": 2
+        }
+      },
+      "diff": [
+        {"op": "copy", "from": "/A", "path": "/D"},
+        {"op": "copy", "from": "/B/1", "path": "/C/CA"},
+        {"op": "copy", "from": "/B/3", "path": "/C/CB"},
+        {"op": "copy", "from": "/B", "path": "/E"}
+      ],
+      "hope": {
+        "A": 1,
+        "B": [1, 2, 3, {"BA": 1}],
+        "C": {
+          "CA": 2,
+          "CB": {"BA": 1}
+        },
+        "D": 1,
+        "E": [1, 2, 3, {"BA": 1}]
+      }
+    },
+    {
+      "name": "move-smoke",
+      "src": {
+        "A": 1,
+        "B": [1, 2, 3, {"BA": 1}],
+        "C": {
+          "CA": 1,
+          "CB": 2
+        }
+      },
+      "diff": [
+        {"op": "move", "from": "/A", "path": "/D"},
+        {"op": "move", "from": "/B/0", "path": "/B/1"},
+        {"op": "move", "from": "/B/2", "path": "/C/CB"}
+      ],
+      "hope": {
+        "D": 1,
+        "B": [1, 3],
+        "C": {
+          "CA": 1,
+          "CB": {"BA": 1}
+        }
+      }
+    }
+  ]
+}
