@@ -2,6 +2,13 @@
 
 [RFC 6092](https://tools.ietf.org/html/rfc6902) 的 Go 语言实现
 
+[![GoDoc](https://camo.githubusercontent.com/ba58c24fb3ac922ec74e491d3ff57ebac895cf2deada3bf1c9eebda4b25d93da/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f67616d6d617a65726f2f776f726b6572706f6f6c3f7374617475732e737667)](https://pkg.go.dev/github.com/520MianXiangDuiXiang520/json-diff)
+
+<a title="Apache License 2.0" target="_blank" href="https://github.com/520MianXiangDuiXiang520/json-diff/LICENSE"><img src="https://img.shields.io/badge/license-MIT-red.svg?style=flat-square"></a>
+
+<a href="https://goreportcard.com/badge/github.com/520MianXiangDuiXiang520/json-diff"> <img src="https://goreportcard.com/badge/github.com/520MianXiangDuiXiang520/json-diff" /></a>
+<a href="https://codeclimate.com/github/520MianXiangDuiXiang520/json-diff/maintainability"><img src="https://api.codeclimate.com/v1/badges/ed575aea812a025dfcc9/maintainability" /></a>
+
 ## 功能：
 
 * 不依赖于 `struct` 的 JSON 的序列化与反序列化
