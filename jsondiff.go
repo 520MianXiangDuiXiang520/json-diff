@@ -202,22 +202,23 @@ func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOpt
 	}
 }
 
-func getDiff(source, patch []byte, options ...JsonDiffOption) *JsonNode {
-	sourceJsonNode := Unmarshal(source)
-	patchJsonNode := Unmarshal(patch)
-	option := JsonDiffOption(0)
-	for _, o := range options {
-		option |= o
-	}
-	diffs := newDiffs()
-	diff(diffs, "", sourceJsonNode, patchJsonNode, option)
-	doOption(diffs, option, sourceJsonNode, patchJsonNode)
-	return diffs.d
+// GetDiffNode 比较两个 JsonNode 之间的差异，并返回 JsonNode 格式的差异结果
+func GetDiffNode(sourceJsonNode, patchJsonNode *JsonNode, options ...JsonDiffOption) *JsonNode {
+    option := JsonDiffOption(0)
+    for _, o := range options {
+        option |= o
+    }
+    diffs := newDiffs()
+    diff(diffs, "", sourceJsonNode, patchJsonNode, option)
+    doOption(diffs, option, sourceJsonNode, patchJsonNode)
+    return diffs.d
 }
 
 // AsDiffs 比较 patch 相比于 source 的差别，返回 json 格式的差异文档。
 func AsDiffs(source, patch []byte, options ...JsonDiffOption) ([]byte, error) {
-	dict := marshalSlice(getDiff(source, patch, options...))
+    sourceJsonNode := Unmarshal(source)
+    patchJsonNode := Unmarshal(patch)
+	dict := marshalSlice(GetDiffNode(sourceJsonNode, patchJsonNode, options...))
 	return json.Marshal(dict)
 }
 
@@ -315,26 +316,32 @@ func mergeTest(srcNode *JsonNode, path string, value *JsonNode) error {
 // 根据差异文档 diff 还原 source 的差异
 func MergeDiff(source, diff []byte) ([]byte, error) {
 	diffNode := Unmarshal(diff)
-	if diffNode == nil {
-		return nil, nil
-	}
-	if diffNode.Type != JsonNodeTypeSlice {
-		return nil, errors.New("DabDiff")
-	}
 	srcNode := Unmarshal(source)
+	result, err := MergeDiffNode(srcNode, diffNode)
+	if err != nil {
+	    return nil, err
+    }
+	return Marshal(result)
+}
 
-	// guarantee atomicity
-	copyNode := new(JsonNode)
-	err := DeepCopy(copyNode, srcNode)
-	if err != nil {
-		return nil, err
-	}
-	err = merge(copyNode, diffNode)
-	if err != nil {
-		return nil, err
-	}
-	srcNode = copyNode
-	return Marshal(srcNode)
+func MergeDiffNode(source, diffs *JsonNode) (*JsonNode, error) {
+    if diffs == nil {
+        return source, nil
+    }
+    if diffs.Type != JsonNodeTypeSlice {
+        return nil, errors.New("DabDiff")
+    }
+    copyNode := new(JsonNode)
+    err := DeepCopy(copyNode, source)
+    if err != nil {
+        return nil, err
+    }
+    err = merge(copyNode, diffs)
+    if err != nil {
+        return nil, err
+    }
+    source = copyNode
+    return source, nil
 }
 
 func beautifyJsonString(data []byte) {

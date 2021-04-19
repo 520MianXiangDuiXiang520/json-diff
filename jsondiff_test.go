@@ -150,7 +150,9 @@ func TestGetDiff(t *testing.T) {
 	}
 	for _, tt := range tss {
 		t.Run(tt.name, func(t *testing.T) {
-			diffs := getDiff(tt.args.source, tt.args.patch, tt.args.options...)
+		    src := Unmarshal(tt.args.source)
+		    pat := Unmarshal(tt.args.patch)
+			diffs := GetDiffNode(src, pat, tt.args.options...)
 			if !eq(diffs, tt.want) {
 				got, _ := Marshal(diffs)
 				want, _ := Marshal(tt.want)
