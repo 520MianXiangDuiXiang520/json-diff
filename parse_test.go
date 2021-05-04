@@ -1,8 +1,9 @@
 package json_diff
 
 import (
-	"fmt"
-	"testing"
+    "fmt"
+    `log`
+    "testing"
 )
 
 func Test_keyReplace(t *testing.T) {
@@ -61,6 +62,25 @@ func ExampleUnmarshal() {
           "CA": {"CAA": 1}
         }
       }`
-	jsonNode := Unmarshal([]byte(json))
+	jsonNode, err := Unmarshal([]byte(json))
+	if err != nil {
+	    log.Println(err)
+    }
 	fmt.Println(jsonNode)
+}
+
+func TestUnmarshal(t *testing.T) {
+    t.Run("test nil input", func(t *testing.T) {
+        res, err := Unmarshal(nil)
+        if res != nil || err == nil {
+            t.Errorf("want res is nil && err not nil, but got res: %v, err: %v \n", res, err)
+        }
+    })
+    
+    t.Run("test Marshal input nil", func(t *testing.T) {
+        data, err := Marshal(nil)
+        if data != nil || err == nil {
+            t.Errorf("want res is nil && err not nil, but got res: %v, err: %v \n", data, err)
+        }
+    })
 }

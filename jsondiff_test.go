@@ -58,7 +58,7 @@ func Test_merge_smoke(t *testing.T) {
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	caseNode := Unmarshal(input)
+	caseNode, _ := Unmarshal(input)
 	cases := caseNode.ChildrenMap["cases"]
 	testCases := make([]testCase, len(cases.Children))
 	for i, tt := range cases.Children {
@@ -121,7 +121,7 @@ func TestGetDiff(t *testing.T) {
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	caseNode := Unmarshal(input)
+	caseNode, _ := Unmarshal(input)
 	cases := caseNode.ChildrenMap["cases"].Children
 	type ts struct {
 		name    string
@@ -150,8 +150,8 @@ func TestGetDiff(t *testing.T) {
 	}
 	for _, tt := range tss {
 		t.Run(tt.name, func(t *testing.T) {
-		    src := Unmarshal(tt.args.source)
-		    pat := Unmarshal(tt.args.patch)
+		    src, _ := Unmarshal(tt.args.source)
+		    pat, _ := Unmarshal(tt.args.patch)
 			diffs := GetDiffNode(src, pat, tt.args.options...)
 			if !eq(diffs, tt.want) {
 				got, _ := Marshal(diffs)

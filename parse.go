@@ -3,7 +3,8 @@ package json_diff
 import (
 	"bytes"
 	"encoding/json"
-	"regexp"
+    `github.com/pkg/errors`
+    "regexp"
 	"strings"
 )
 
@@ -80,12 +81,13 @@ func parse(v interface{}, level int64) *JsonNode {
 	return root
 }
 
-func Parse(input []byte) *JsonNode {
+// Parse 于 Unmarshal 无异
+func Parse(input []byte) (*JsonNode, error) {
 	var v interface{}
 	if err := json.Unmarshal(input, &v); err != nil {
-		panic(err)
+		return nil, errors.Wrap(err, "fail to unmarshal")
 	}
-	return parse(v, 0)
+	return parse(v, 0), nil
 }
 
 func marshalValue(root *JsonNode) interface{} {
@@ -122,11 +124,17 @@ func marshalSlice(root *JsonNode) []interface{} {
 	return res
 }
 
-func Unmarshal(input []byte) *JsonNode {
+// Unmarshal 将使用 json 编码的数据反序列化为 JsonNode 对象。
+func Unmarshal(input []byte) (*JsonNode, error) {
 	return Parse(input)
 }
 
+// Marshal 将一个 JsonNode 对象序列化为 json 编码的字节数组
+// 当输入的 JsonNode 是 nil 时，Marshal 直接返回 nil
 func Marshal(root *JsonNode) ([]byte, error) {
+    if root == nil {
+        return nil, errors.New("can not marshal nil")
+    }
 	var dict interface{}
 	switch root.Type {
 	case JsonNodeTypeObject:
@@ -136,6 +144,9 @@ func Marshal(root *JsonNode) ([]byte, error) {
 	case JsonNodeTypeValue:
 		dict = marshalValue(root)
 	}
-	return json.Marshal(dict)
-
+	res, err := json.Marshal(dict)
+	if err != nil {
+	    return nil, errors.Wrap(err, "fail to marshal")
+    }
+	return res, nil
 }

@@ -9,19 +9,30 @@
 <a href="https://goreportcard.com/badge/github.com/520MianXiangDuiXiang520/json-diff"> <img src="https://goreportcard.com/badge/github.com/520MianXiangDuiXiang520/json-diff" /></a>
 <a href="https://codeclimate.com/github/520MianXiangDuiXiang520/json-diff/maintainability"><img src="https://api.codeclimate.com/v1/badges/ed575aea812a025dfcc9/maintainability" /></a>
 
-## 功能：
-
-* 不依赖于 `struct` 的 JSON 的序列化与反序列化
-* 两个 JSON 串的差异比较
-* 根据差异还原原 JSON 串
-
-## 使用
-
 ```shell
 go get -u github.com/520MianXiangDuiXiang520/json-diff
 ```
 
+## 功能：
+
 ### 序列化与反序列化
+
+与官方 json 包的序列化和反序列化不同，官方包序列化需要指定一个 `interface{}`, 像：
+
+```go
+package main
+
+import "json"
+
+func main() {
+  jsonStr := "{}"
+  var jsonObj interface{}
+  node := json.Unmarshal(&jsonObj, []byte(jsonStr))
+  // ...
+}
+```
+
+这样不方便编辑反序列化后的 json 对象， json-diff 可以将任意的 json 串转换成统一的 `JsonNode` 类型，并且提供一系列的增删查改方法，方便操作对象：
 
 ```go
 func ExampleUnmarshal() {
@@ -37,31 +48,54 @@ func ExampleUnmarshal() {
 }
 ```
 
-`Unmarshal()` 将任意合法的 JSON 串反序列化成 `*JsonNode` 类型，基于该类型，可以更方便地操作 JSON 对象
+### 差异比较
 
-`JsonNode` 包含以下方法：
+通过对比两个 Json 串，输出他们的差异或者通过差异串得到修改后的 json 串
 
-* `Find(path string)`: 从当前 `JsonNode` 中找到满足 path 的子对象并返回， 如要查找 `CAA`, path 为 `/C/CA/CAA`
-* `Equal(*JsonNode)`: 判断两个对象是否相等
-* `ADD(key interface{}, value *JsonNode)`: 根据 key 向当前对象插入一个子对象
-* `Replace(key interface{}, value *JsonNode)`: 根据 key 替换
-* `Remove(key interface{})`: 根据 key shanc
-* ...
+```go
+func ExampleAsDiffs() {
+	json1 := `{
+        "A": 1,
+        "B": [1, 2, 3],
+        "C": {
+          "CA": 1
+        }
+      }`
+	json2 := `{
+        "A": 2,
+        "B": [1, 2, 4],
+        "C": {
+          "CA": {"CAA": 1}
+        }
+      }`
+	res, _ := AsDiffs([]byte(json1), []byte(json2), UseMoveOption, UseCopyOption, UseFullRemoveOption)
+	fmt.Println(res)
+}
+```
 
-`JsonNode` 对象可以使用 `Marshal()` 方法序列化成 JSON 字符数组
+```go
+func ExampleMergeDiff() {
+	json2 := `{
+        "A": 1,
+        "B": [1, 2, 3, {"BA": 1}],
+        "C": {
+          "CA": 1,
+          "CB": 2
+        }
+      }`
+	diffs := `[
+        {"op": "move", "from": "/A", "path": "/D"},
+        {"op": "move", "from": "/B/0", "path": "/B/1"},
+        {"op": "move", "from": "/B/2", "path": "/C/CB"}
+      ]`
+	res, _ := MergeDiff([]byte(json2), []byte(diffs))
+	fmt.Println(res)
+}
+```
 
-### diff
+#### 输出格式
 
-diff 遵循 RFC 6092 规范，两个 JSON 串的差异被分为 6 类：
-
-1. `add`: 新增
-2. `replace`: 替换
-3. `remove`: 删除
-4. `move`: 移动
-5. `copy`: 复制
-6. `test`: 测试
-
-他们的格式如下：
+输出一个 json 格式的字节数组，类似于：
 
 ```json
    [
@@ -74,60 +108,80 @@ diff 遵循 RFC 6092 规范，两个 JSON 串的差异被分为 6 类：
    ]
 ```
 
-> * `test` 用于还原时测试路径下的值是否与 value 相等
+其中数组中的每一项代表一个差异点，格式由 RFC 6092 定义，op 表示差异类型，有六种：
+
+1. `add`: 新增
+2. `replace`: 替换
+3. `remove`: 删除
+4. `move`: 移动
+5. `copy`: 复制
+6. `test`: 测试
+
+其中 move 和 copy 可以减少差异串的体积，但会增加差异比较的时间, 可以通过修改 `AsDiff()` 的 options 指定是否开启，options 的选项和用法如下：
 
 ```go
-func ExampleAsDiffs() {
-    json1 := `{
-        "A": 1,
-        "B": [1, 2, 3],
-        "C": {
-          "CA": 1
-        }
-      }`
-    json2 := `{
-        "A": 2,
-        "B": [1, 2, 4],
-        "C": {
-          "CA": {"CAA": 1}
-        }
-      }`
-    res, _ := AsDiffs([]byte(json1), []byte(json2))
-    fmt.Println(res)
+  // 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
+  // 以减少差异串的大小，但这需要额外的计算，默认不开启
+  UseCopyOption JsonDiffOption = 1 << iota
+
+  // 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
+  UseCheckCopyOption
+
+  // 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
+  // 以此减少差异串的大小，默认不开启
+  UseMoveOption
+
+  // Remove 时除了返回 path, 还返回删除了的值，默认不开启
+  UseFullRemoveOption
+```
+
+#### 相等的依据
+
+对于一个对象，其内部元素的顺序不作为相等判断的依据，如
+
+```json
+{
+  "a": 1,
+  "b": 2,
 }
 ```
 
-使用 `AsDiffs()` 函数获取两个 JSON 串的差异，`AsDiffs()` 接收一组可选的参数 `JsonDiffOption` 他们的取值如下：
+和
 
-```go
-   // 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
-    // 以减少差异串的大小，但这需要额外的计算，默认不开启
-    UseCopyOption JsonDiffOption = 1 << iota
-    
-    // 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
-    UseCheckCopyOption
-    
-    // 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
-    // 以此减少差异串的大小，默认不开启
-    UseMoveOption
-    
-    // Remove 时除了返回 path, 还返回删除了的值，默认不开启
-    UseFullRemoveOption
+```json
+{
+  "b": 2,
+  "a": 1,
+}
 ```
 
-即默认情况下，差异串只有 `add, replace, remove` 三种， `remove` 也只会返回 path, 更改默认行为可以传入需要的 JsonDiffOption, 如：
+被认为是相等的。
 
-```go
-res, _ := AsDiffs([]byte(json1), []byte(json2), UseMoveOption, UseCopyOption, UseFullRemoveOption)
-fmt.Println(res)
+对于一个列表，元素顺序则作为判断相等的依据，如：
+
+```json
+{
+  "a": [1, 2]
+}
 ```
 
-## 其他
+和
 
-什么样的两个 JSON 对象被认为是相等的：
+```json
+{
+  "a": [2, 1]
+}
+```
 
-* 对于一个对象 `{}`，顺序无关
-* 对于一个列表 `[]`, 顺序相关
+被认为不相等。
+
+只有一个元素的所有子元素全部相等，他们才相等
+
+#### 原子性
+
+根据 RFC 6092，差异合并应该具有原子性，即列表中有一个差异合并失败，之前的合并全部作废，而 test 类型就用来在合并差异之前检查路径和值是否正确，你可以通过选项开启它，但即便不使用 test，合并也是原子性的。
+
+json-diff 在合并差异前会深拷贝源数据，并使用拷贝的数据做差异合并，一旦发生错误，将会返回 nil, 任何情况下都不会修改原来的数据。
 
 ## 参考
 

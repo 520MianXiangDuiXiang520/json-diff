@@ -11,7 +11,7 @@ func TestDeepCopy(t *testing.T) {
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	src := Unmarshal(input)
+	src, _ := Unmarshal(input)
 	type args struct {
 		dst interface{}
 		src interface{}

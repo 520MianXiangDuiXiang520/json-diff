@@ -1,94 +1,12 @@
 package json_diff
 
 import (
-	"bytes"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"strconv"
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "github.com/pkg/errors"
+    "strconv"
 )
-
-type diffs struct {
-	d *JsonNode
-}
-
-func (d *diffs) remove(idx int) {
-	if idx >= d.size() {
-		return
-	}
-	n := make([]*JsonNode, d.size()-1)
-	for i := 0; i < idx; i++ {
-		n[i] = d.d.Children[i]
-	}
-	for i := idx + 1; i < d.size(); i++ {
-		n[i-1] = d.d.Children[i]
-	}
-	d.d.Children = n
-}
-
-func (d *diffs) get(i int) *JsonNode {
-	if i >= d.size() {
-		return nil
-	}
-	return d.d.Children[i]
-}
-
-func (d *diffs) add(node *JsonNode) {
-	d.d.Children = append(d.d.Children, node)
-}
-
-func (d *diffs) insert(i int, node *JsonNode) {
-	if i > d.size() {
-		d.add(node)
-		return
-	}
-	n := make([]*JsonNode, d.size()+1)
-	for idx := 0; idx < i; idx++ {
-		n[idx] = d.d.Children[idx]
-	}
-	n[i] = node
-	for idx := i; idx < d.size(); idx++ {
-		n[idx+1] = d.d.Children[idx]
-	}
-	d.d.Children = n
-}
-
-func (d *diffs) set(i int, node *JsonNode) {
-	if i < len(d.d.Children) {
-		d.d.Children[i] = node
-	}
-}
-
-func (d *diffs) size() int {
-	return len(d.d.Children)
-}
-
-func (d *diffs) rangeType(f func(i int, v *JsonNode, t DiffType) bool) {
-	for i, child := range d.d.Children {
-		ty := child.ChildrenMap["op"].Value.(string)
-		t, ok := stringToDiffType(ty)
-		if !ok {
-			continue
-		}
-		if f(i, child, t) {
-			break
-		}
-	}
-}
-
-func (d *diffs) ranger(f func(i int, v *JsonNode) bool) {
-	for i, child := range d.d.Children {
-		if f(i, child) {
-			break
-		}
-	}
-}
-
-func newDiffs() *diffs {
-	return &diffs{d: &JsonNode{
-		Type: JsonNodeTypeSlice,
-	}}
-}
 
 func diffSlice(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOption) {
 	lcsList := longestCommonSubsequence(source.Children, patch.Children)
@@ -191,8 +109,6 @@ func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOpt
 			diffObject(diffs, path, source, patch, option)
 		} else if source.Type == JsonNodeTypeSlice && patch.Type == JsonNodeTypeSlice {
 			diffSlice(diffs, path, source, patch, option)
-		} else if source.Type == JsonNodeTypeSlice || patch.Type == JsonNodeTypeSlice {
-			diffs.add(newDiffNode(DiffTypeReplace, path, patch, "", option))
 		} else {
 			// 两个都是 JsonNodeTypeSlice
 			if !source.Equal(patch) {
@@ -216,18 +132,16 @@ func GetDiffNode(sourceJsonNode, patchJsonNode *JsonNode, options ...JsonDiffOpt
 
 // AsDiffs 比较 patch 相比于 source 的差别，返回 json 格式的差异文档。
 func AsDiffs(source, patch []byte, options ...JsonDiffOption) ([]byte, error) {
-    sourceJsonNode := Unmarshal(source)
-    patchJsonNode := Unmarshal(patch)
+    sourceJsonNode, _ := Unmarshal(source)
+    patchJsonNode, _ := Unmarshal(patch)
 	dict := marshalSlice(GetDiffNode(sourceJsonNode, patchJsonNode, options...))
 	return json.Marshal(dict)
 }
 
-var badDiff = errors.New("DabDiff")
-
 func merge(srcNode, diffNode *JsonNode) error {
 	for _, diff := range diffNode.Children {
 		if diff.Type != JsonNodeTypeObject {
-			return badDiff
+			return errors.WithStack(BadDiffsError)
 		}
 		op := diff.ChildrenMap["op"].Value
 		path := diff.ChildrenMap["path"].Value.(string)
@@ -261,91 +175,51 @@ func merge(srcNode, diffNode *JsonNode) error {
 				return err
 			}
 		case "test":
-			err := mergeTest(srcNode, path, diff.ChildrenMap["value"])
+			err := ATestPath(srcNode, path, diff.ChildrenMap["value"])
 			if err != nil {
 				return err
 			}
 		default:
-			return badDiff
+			return errors.New(fmt.Sprintf("bad diffs: %v", diff))
 		}
 	}
 	return nil
 }
 
-func testFail(info string) error {
-	return fmt.Errorf("TestFail: %s", info)
-}
-
-func mergeTest(srcNode *JsonNode, path string, value *JsonNode) error {
-	f, ok := srcNode.Find(path)
-	if !ok {
-		return testFail("path not find")
-	}
-	if f.Type != f.Type {
-		return testFail("different types")
-	}
-	switch value.Type {
-	case JsonNodeTypeValue:
-		// [{"op": "test", "path": "a/b/c", "value":"123"}]
-		if f.Value != value.Value {
-			return testFail("different value")
-		}
-	case JsonNodeTypeSlice:
-		// [{"op": "test", "path": "a/b/c", "value":[123, 456]}]
-		if len(f.Children) != len(value.Children) {
-			return testFail("different value")
-		}
-		for i, v := range value.Children {
-			if !v.Equal(f.Children[i]) {
-				return testFail("different value")
-			}
-		}
-	case JsonNodeTypeObject:
-		if len(f.ChildrenMap) != len(value.ChildrenMap) {
-			return testFail("different value")
-		}
-		for k, v := range value.ChildrenMap {
-			if !v.Equal(f.ChildrenMap[k]) {
-				return testFail("different value")
-			}
-		}
-	}
-	return nil
-}
-
-// 根据差异文档 diff 还原 source 的差异
+// MergeDiff 根据差异文档 diff 还原 source 的差异
 func MergeDiff(source, diff []byte) ([]byte, error) {
-	diffNode := Unmarshal(diff)
-	srcNode := Unmarshal(source)
+	diffNode, err := Unmarshal(diff)
+	if err != nil {
+	    return nil, errors.Wrap(err, "fail to unmarshal diff data")
+    }
+	srcNode, err := Unmarshal(source)
+	if err != nil {
+	    return nil, errors.Wrap(err, "fail to unmarshal source data")
+    }
 	result, err := MergeDiffNode(srcNode, diffNode)
 	if err != nil {
-	    return nil, err
+	    return nil, errors.Wrap(err, "fail to merge diff")
     }
 	return Marshal(result)
 }
 
+// MergeDiffNode 将 JsonNode 类型的 diffs 应用于源 source 上，并返回合并后的新 jsonNode 对象
+// 如果 diffs 不合法，第二个参数将会返回 BadDiffsError
 func MergeDiffNode(source, diffs *JsonNode) (*JsonNode, error) {
     if diffs == nil {
         return source, nil
     }
     if diffs.Type != JsonNodeTypeSlice {
-        return nil, errors.New("DabDiff")
+        return nil, errors.New("bad diffs")
     }
     copyNode := new(JsonNode)
     err := DeepCopy(copyNode, source)
     if err != nil {
-        return nil, err
+        return nil, errors.Wrap(err, "fail to deep copy source")
     }
     err = merge(copyNode, diffs)
     if err != nil {
-        return nil, err
+        return nil, errors.Wrap(err, "fail to merge")
     }
-    source = copyNode
     return source, nil
-}
-
-func beautifyJsonString(data []byte) {
-	var str bytes.Buffer
-	_ = json.Indent(&str, data, "", "    ")
-	fmt.Println(str.String())
 }

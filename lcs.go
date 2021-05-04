@@ -1,21 +1,10 @@
 package json_diff
 
-import (
-	"fmt"
-)
-
 func max(a, b int) int {
 	if a < b {
 		return b
 	}
 	return a
-}
-
-func printDP(dp [][]int) {
-	for _, i := range dp {
-		fmt.Println(i)
-	}
-	fmt.Println()
 }
 
 func longestCommonSubsequence(first, second []*JsonNode) []*JsonNode {

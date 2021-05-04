@@ -7,18 +7,18 @@ import (
 type JsonDiffOption uint
 
 const (
-	// 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
+    // UseCopyOption 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
 	// 以减少差异串的大小，但这需要额外的计算，默认不开启
 	UseCopyOption JsonDiffOption = 1 << iota
-
-	// 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
+    
+    // UseCheckCopyOption 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
 	UseCheckCopyOption
-
-	// 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
+    
+    // UseMoveOption 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
 	// 以此减少差异串的大小，默认不开启
 	UseMoveOption
-
-	// Remove 时除了返回 path, 还返回删除了的值，默认不开启
+    
+    // UseFullRemoveOption Remove 时除了返回 path, 还返回删除了的值，默认不开启
 	UseFullRemoveOption
 )
 
