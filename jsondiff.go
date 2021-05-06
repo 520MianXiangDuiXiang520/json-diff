@@ -221,5 +221,5 @@ func MergeDiffNode(source, diffs *JsonNode) (*JsonNode, error) {
     if err != nil {
         return nil, errors.Wrap(err, "fail to merge")
     }
-    return source, nil
+    return copyNode, nil
 }

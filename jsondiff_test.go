@@ -83,11 +83,11 @@ func Test_merge_smoke(t *testing.T) {
 			if err != nil {
 				t.Errorf("fail to deepcopy src object")
 			}
-			err = merge(src, cs.args.diffNode)
+			res, err := MergeDiffNode(src, cs.args.diffNode)
 			if err != nil {
 				t.Errorf("fail to do merge(), get error: %v", err)
 			}
-			if !src.Equal(cs.want) {
+			if !res.Equal(cs.want) {
 				get, _ := Marshal(src)
 				want, _ := Marshal(cs.want)
 				t.Errorf("the value of after merge(%v) are not equal want(%v)", string(get), string(want))
