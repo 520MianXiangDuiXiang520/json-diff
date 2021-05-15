@@ -75,11 +75,10 @@ func Test_merge_smoke(t *testing.T) {
 			want: wantNode,
 		}
 	}
-
 	for _, cs := range testCases {
 		t.Run(cs.name, func(t *testing.T) {
 			src := new(JsonNode)
-			err := DeepCopy(src, cs.args.srcNode)
+			src, err := DeepCopy(cs.args.srcNode)
 			if err != nil {
 				t.Errorf("fail to deepcopy src object")
 			}
@@ -150,8 +149,8 @@ func TestGetDiff(t *testing.T) {
 	}
 	for _, tt := range tss {
 		t.Run(tt.name, func(t *testing.T) {
-		    src, _ := Unmarshal(tt.args.source)
-		    pat, _ := Unmarshal(tt.args.patch)
+			src, _ := Unmarshal(tt.args.source)
+			pat, _ := Unmarshal(tt.args.patch)
 			diffs := GetDiffNode(src, pat, tt.args.options...)
 			if !eq(diffs, tt.want) {
 				got, _ := Marshal(diffs)

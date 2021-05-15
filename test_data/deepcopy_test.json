@@ -1,0 +1,42 @@
+{
+  "obj": {
+    "obj": {
+      "a": false,
+      "b": 1,
+      "c": {
+        "cc": 1,
+        "cd": true,
+        "ce": [
+          1,
+          2,
+          {
+            "cea": 1,
+            "ceb": false,
+            "cec": [1, 2]
+          },
+          [3, 4, 5]
+        ]
+      }
+    },
+    "slice": [
+      1, 2, 3, 4,
+      {
+        "ba": 1,
+        "bb": [
+          12, "jjj", true, {
+            "bba": 7
+          }
+        ],
+        "bc": 3,
+        "bd": true
+      },
+      true, false, "fvv"
+    ],
+    "va": 1,
+    "va2": -0,
+    "va3": false,
+    "va4": true,
+    "va5": "sds",
+    "va6": 2e8
+  }
+}

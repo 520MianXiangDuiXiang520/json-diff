@@ -5,40 +5,67 @@ import (
 	"testing"
 )
 
+func TestDeepCopy_emptyObject(t *testing.T) {
+	srcStr := "{}"
+	srcNode, _ := Unmarshal([]byte(srcStr))
+	cp, err := DeepCopy(srcNode)
+	if err != nil {
+		t.Errorf("got an error: %v", err)
+	}
+	err = cp.ADD("child", NewValueNode(1, 2))
+	if err != nil {
+		t.Errorf("fail to add child: %v", err)
+	}
+	if _, ok := srcNode.ChildrenMap["child"]; ok {
+		t.Errorf("change source object: %s", srcNode.String())
+	}
+}
+
 func TestDeepCopy(t *testing.T) {
-	fileName := "./test_data/mergeSmoke.json"
+	fileName := "./test_data/deepcopy_test.json"
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	src, _ := Unmarshal(input)
-	type args struct {
-		dst interface{}
-		src interface{}
+	srcNode, _ := Unmarshal(input)
+	cp, err := DeepCopy(srcNode)
+	if err != nil {
+		t.Errorf("got an error: %v", err)
 	}
-	dst := new(JsonNode)
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{name: "smoke", args: args{
-			dst: dst,
-			src: src,
-		}, wantErr: false},
+	err = cp.ADD("add_child", NewValueNode(1, 2))
+	if err != nil {
+		t.Errorf("fail to add child: %v", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := DeepCopy(tt.args.dst, tt.args.src); (err != nil) != tt.wantErr {
-				t.Errorf("DeepCopy() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if dst == nil || !dst.Equal(src) {
-				t.Errorf("Values are not equal after DeepCopy, dst is %v, but src is %v", dst, src)
-			}
-			dst.Value = "dst"
-			if dst.Value == src.Value {
-				t.Errorf("dst and src point to the same object")
-			}
-		})
+	err = cp.ADD("add_child", NewValueNode(1, 2))
+	if err != nil {
+		t.Errorf("fail to add child: %v", err)
+	}
+	// 更改深层 object
+	path1 := "/obj/obj/c/ce/2/ceb"
+	cpof, ok := cp.Find(path1)
+	if !ok {
+		t.Errorf("can not find: %s in cp node", path1)
+	}
+	cpof.Value = true
+	of, ok := srcNode.Find(path1)
+	if !ok {
+		t.Errorf("can not find: %s in src node", path1)
+	}
+	if of.Value.(bool) {
+		t.Errorf("change source object: %v", cpof.Value)
+	}
+	// 更改深层 slice
+	path2 := "/obj/slice/4/bb/1"
+	cpof, ok = cp.Find(path1)
+	if !ok {
+		t.Errorf("can not find: %s in cp node", path2)
+	}
+	cpof.Value = "ggg"
+	of, ok = srcNode.Find(path2)
+	if !ok {
+		t.Errorf("can not find: %s in src node", path2)
+	}
+	if of.Value.(string) != "jjj" {
+		t.Errorf("change source object: %v", cpof.Value)
 	}
 }

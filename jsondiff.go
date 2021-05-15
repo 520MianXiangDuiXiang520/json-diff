@@ -1,11 +1,11 @@
 package json_diff
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "github.com/pkg/errors"
-    "strconv"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
+	"strconv"
 )
 
 func diffSlice(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOption) {
@@ -120,20 +120,20 @@ func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOpt
 
 // GetDiffNode 比较两个 JsonNode 之间的差异，并返回 JsonNode 格式的差异结果
 func GetDiffNode(sourceJsonNode, patchJsonNode *JsonNode, options ...JsonDiffOption) *JsonNode {
-    option := JsonDiffOption(0)
-    for _, o := range options {
-        option |= o
-    }
-    diffs := newDiffs()
-    diff(diffs, "", sourceJsonNode, patchJsonNode, option)
-    doOption(diffs, option, sourceJsonNode, patchJsonNode)
-    return diffs.d
+	option := JsonDiffOption(0)
+	for _, o := range options {
+		option |= o
+	}
+	diffs := newDiffs()
+	diff(diffs, "", sourceJsonNode, patchJsonNode, option)
+	doOption(diffs, option, sourceJsonNode, patchJsonNode)
+	return diffs.d
 }
 
 // AsDiffs 比较 patch 相比于 source 的差别，返回 json 格式的差异文档。
 func AsDiffs(source, patch []byte, options ...JsonDiffOption) ([]byte, error) {
-    sourceJsonNode, _ := Unmarshal(source)
-    patchJsonNode, _ := Unmarshal(patch)
+	sourceJsonNode, _ := Unmarshal(source)
+	patchJsonNode, _ := Unmarshal(patch)
 	dict := marshalSlice(GetDiffNode(sourceJsonNode, patchJsonNode, options...))
 	return json.Marshal(dict)
 }
@@ -190,36 +190,35 @@ func merge(srcNode, diffNode *JsonNode) error {
 func MergeDiff(source, diff []byte) ([]byte, error) {
 	diffNode, err := Unmarshal(diff)
 	if err != nil {
-	    return nil, errors.Wrap(err, "fail to unmarshal diff data")
-    }
+		return nil, errors.Wrap(err, "fail to unmarshal diff data")
+	}
 	srcNode, err := Unmarshal(source)
 	if err != nil {
-	    return nil, errors.Wrap(err, "fail to unmarshal source data")
-    }
+		return nil, errors.Wrap(err, "fail to unmarshal source data")
+	}
 	result, err := MergeDiffNode(srcNode, diffNode)
 	if err != nil {
-	    return nil, errors.Wrap(err, "fail to merge diff")
-    }
+		return nil, errors.Wrap(err, "fail to merge diff")
+	}
 	return Marshal(result)
 }
 
 // MergeDiffNode 将 JsonNode 类型的 diffs 应用于源 source 上，并返回合并后的新 jsonNode 对象
 // 如果 diffs 不合法，第二个参数将会返回 BadDiffsError
 func MergeDiffNode(source, diffs *JsonNode) (*JsonNode, error) {
-    if diffs == nil {
-        return source, nil
-    }
-    if diffs.Type != JsonNodeTypeSlice {
-        return nil, errors.New("bad diffs")
-    }
-    copyNode := new(JsonNode)
-    err := DeepCopy(copyNode, source)
-    if err != nil {
-        return nil, errors.Wrap(err, "fail to deep copy source")
-    }
-    err = merge(copyNode, diffs)
-    if err != nil {
-        return nil, errors.Wrap(err, "fail to merge")
-    }
-    return copyNode, nil
+	if diffs == nil {
+		return source, nil
+	}
+	if diffs.Type != JsonNodeTypeSlice {
+		return nil, errors.New("bad diffs")
+	}
+	copyNode, err := DeepCopy(source)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to deep copy source")
+	}
+	err = merge(copyNode, diffs)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to merge")
+	}
+	return copyNode, nil
 }
