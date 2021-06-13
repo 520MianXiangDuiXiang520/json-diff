@@ -2,28 +2,29 @@ package json_diff
 
 import (
 	"fmt"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
 )
 
 type JsonDiffOption uint
 
 const (
-    // UseCopyOption 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
+	// UseCopyOption 返回差异时使用 Copy, 当发现新增的子串出现在原串中时，使用该选项可以将 Add 行为替换为 Copy 行为
 	// 以减少差异串的大小，但这需要额外的计算，默认不开启
 	UseCopyOption JsonDiffOption = 1 << iota
-    
-    // UseCheckCopyOption 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
+
+	// UseCheckCopyOption 仅在 UseCopyOption 选项开启时有效，替换前会添加 Test 行为，以确保 Copy 的路径存在
 	UseCheckCopyOption
-    
-    // UseMoveOption 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
+
+	// UseMoveOption 返回差异时使用 Copy, 当发现差异串中两个 Add 和 Remove 的值相等时，会将他们合并为一个 Move 行为
 	// 以此减少差异串的大小，默认不开启
 	UseMoveOption
-    
-    // UseFullRemoveOption Remove 时除了返回 path, 还返回删除了的值，默认不开启
+
+	// UseFullRemoveOption Remove 时除了返回 path, 还返回删除了的值，默认不开启
 	UseFullRemoveOption
 )
 
-func doOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
-	if diffs.d.Type != JsonNodeTypeSlice {
+func doOption(diffs *diffs, opt JsonDiffOption, src, target *decode.JsonNode) {
+	if diffs.d.Type != decode.JsonNodeTypeSlice {
 		return
 	}
 	if opt&UseCopyOption == UseCopyOption || opt&UseMoveOption == UseMoveOption {
@@ -38,9 +39,9 @@ func doOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
 	}
 }
 
-func doCopyOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
+func doCopyOption(diffs *diffs, opt JsonDiffOption, src, target *decode.JsonNode) {
 	unChanges := getUnChangeNodes(src, target)
-	diffs.rangeType(func(i int, v *JsonNode, t DiffType) bool {
+	diffs.rangeType(func(i int, v *decode.JsonNode, t DiffType) bool {
 		if t == DiffTypeAdd {
 			key := setHash(v.ChildrenMap["value"])
 			if path, ok := unChanges.load(key, v.ChildrenMap["value"]); ok {
@@ -95,12 +96,12 @@ func doCopyOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
 //     }
 // }
 
-func getDiffType(diff *JsonNode) DiffType {
+func getDiffType(diff *decode.JsonNode) DiffType {
 	t, _ := stringToDiffType(diff.ChildrenMap["op"].Value.(string))
 	return t
 }
 
-func getDiffValue(src, diff *JsonNode) *JsonNode {
+func getDiffValue(src, diff *decode.JsonNode) *decode.JsonNode {
 	switch getDiffType(diff) {
 	case DiffTypeAdd:
 		return diff.ChildrenMap["value"]
@@ -112,11 +113,11 @@ func getDiffValue(src, diff *JsonNode) *JsonNode {
 	return nil
 }
 
-func getDiffPath(diff *JsonNode) string {
+func getDiffPath(diff *decode.JsonNode) string {
 	return diff.ChildrenMap["path"].Value.(string)
 }
 
-func doMoveOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
+func doMoveOption(diffs *diffs, opt JsonDiffOption, src, target *decode.JsonNode) {
 	for i := 0; i < diffs.size(); i++ {
 		diff1 := diffs.get(i)
 		diff1Type := getDiffType(diff1)
@@ -128,7 +129,7 @@ func doMoveOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
 			if !getDiffValue(src, diff1).Equal(getDiffValue(src, diff2)) {
 				continue
 			}
-			var moveDiff *JsonNode
+			var moveDiff *decode.JsonNode
 			if getDiffType(diff1) == DiffTypeRemove && getDiffType(diff2) == DiffTypeAdd {
 				moveDiff = newDiffNode(DiffTypeMove, getDiffPath(diff2), nil, getDiffPath(diff1), opt)
 			} else if getDiffType(diff1) == DiffTypeAdd && getDiffType(diff2) == DiffTypeRemove {
@@ -145,14 +146,14 @@ func doMoveOption(diffs *diffs, opt JsonDiffOption, src, target *JsonNode) {
 
 type unChangeContainerValue struct {
 	path interface{}
-	node *JsonNode
+	node *decode.JsonNode
 }
 
 type unChangeContainer struct {
 	c map[string][]*unChangeContainerValue
 }
 
-func (u *unChangeContainer) store(key string, obj *JsonNode, path interface{}) {
+func (u *unChangeContainer) store(key string, obj *decode.JsonNode, path interface{}) {
 	list, ok := u.c[key]
 	if !ok {
 		u.c[key] = []*unChangeContainerValue{
@@ -164,7 +165,7 @@ func (u *unChangeContainer) store(key string, obj *JsonNode, path interface{}) {
 	u.c[key] = list
 }
 
-func (u *unChangeContainer) load(key string, obj *JsonNode) (*unChangeContainerValue, bool) {
+func (u *unChangeContainer) load(key string, obj *decode.JsonNode) (*unChangeContainerValue, bool) {
 	list, ok := u.c[key]
 	if !ok {
 		return nil, false
@@ -177,7 +178,7 @@ func (u *unChangeContainer) load(key string, obj *JsonNode) (*unChangeContainerV
 	return nil, false
 }
 
-func (u *unChangeContainer) storeOrLoad(key, path string, obj *JsonNode) (interface{}, bool) {
+func (u *unChangeContainer) storeOrLoad(key, path string, obj *decode.JsonNode) (interface{}, bool) {
 	p, ok := u.load(key, obj)
 	if ok {
 		return p, false
@@ -186,7 +187,7 @@ func (u *unChangeContainer) storeOrLoad(key, path string, obj *JsonNode) (interf
 	return path, true
 }
 
-func getUnChangeNodes(src *JsonNode, target *JsonNode) unChangeContainer {
+func getUnChangeNodes(src *decode.JsonNode, target *decode.JsonNode) unChangeContainer {
 	contains := unChangeContainer{
 		c: make(map[string][]*unChangeContainerValue),
 	}
@@ -194,28 +195,28 @@ func getUnChangeNodes(src *JsonNode, target *JsonNode) unChangeContainer {
 	return contains
 }
 
-func computeUnChangeNode(container *unChangeContainer, path string, src, target *JsonNode) {
+func computeUnChangeNode(container *unChangeContainer, path string, src, target *decode.JsonNode) {
 	if src.Equal(target) {
 		_, _ = container.storeOrLoad(src.Hash, path, src)
 		return
 	}
 	if src.Type == target.Type {
 		switch src.Type {
-		case JsonNodeTypeObject:
+		case decode.JsonNodeTypeObject:
 			computeObjectUnChange(container, path, src, target)
-		case JsonNodeTypeSlice:
+		case decode.JsonNodeTypeSlice:
 			computeSliceUnChange(container, path, src, target)
 		}
 	}
 }
 
-func computeSliceUnChange(contains *unChangeContainer, path string, src, target *JsonNode) {
+func computeSliceUnChange(contains *unChangeContainer, path string, src, target *decode.JsonNode) {
 	for i, v := range src.Children {
 		computeUnChangeNode(contains, fmt.Sprintf("%s/%d", path, i), v, target.Children[i])
 	}
 }
 
-func computeObjectUnChange(contains *unChangeContainer, path string, src, target *JsonNode) {
+func computeObjectUnChange(contains *unChangeContainer, path string, src, target *decode.JsonNode) {
 	for k, v := range src.ChildrenMap {
 		if tarV, ok := target.ChildrenMap[k]; ok {
 			computeUnChangeNode(contains, fmt.Sprintf("%s/%s", path, k), v, tarV)

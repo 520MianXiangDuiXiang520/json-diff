@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
 	"io/ioutil"
 	"os"
 	"runtime/pprof"
@@ -13,12 +14,12 @@ import (
 
 func TestDeepCopy_emptyObject(t *testing.T) {
 	srcStr := "{}"
-	srcNode, _ := Unmarshal([]byte(srcStr))
+	srcNode, _ := decode.Unmarshal([]byte(srcStr))
 	cp, err := DeepCopy(srcNode)
 	if err != nil {
 		t.Errorf("got an error: %v", err)
 	}
-	err = cp.ADD("child", NewValueNode(1, 2))
+	err = cp.ADD("child", decode.NewValueNode(1, 2))
 	if err != nil {
 		t.Errorf("fail to add child: %v", err)
 	}
@@ -33,16 +34,19 @@ func TestDeepCopy(t *testing.T) {
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	srcNode, _ := Unmarshal(input)
+	srcNode, _ := decode.Unmarshal(input)
 	cp, err := DeepCopy(srcNode)
 	if err != nil {
 		t.Errorf("got an error: %v", err)
 	}
-	err = cp.ADD("add_child", NewValueNode(1, 2))
+	if cp == nil {
+		t.Errorf("cp is nil")
+	}
+	err = cp.ADD("add_child", decode.NewValueNode(1, 2))
 	if err != nil {
 		t.Errorf("fail to add child: %v", err)
 	}
-	err = cp.ADD("add_child", NewValueNode(1, 2))
+	err = cp.ADD("add_child", decode.NewValueNode(1, 2))
 	if err != nil {
 		t.Errorf("fail to add child: %v", err)
 	}
@@ -84,19 +88,19 @@ func oldDeepCopy(dst, src interface{}) error {
 	return gob.NewDecoder(bytes.NewBuffer(buf.Bytes())).Decode(dst)
 }
 
-func TestDeepCopy_speed(t *testing.T) {
+func _TestDeepCopy_speed(t *testing.T) {
 	fileName := "./test_data/deepcopy_test/deepcopy_speed_test.json"
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	srcNode, _ := Unmarshal(input)
+	srcNode, _ := decode.Unmarshal(input)
 	deepCopySpeedTestHelper(srcNode, t, 1000, true, true)
 	deepCopySpeedTestHelper(srcNode, t, 1000, true, false)
 	deepCopySpeedTestHelper(srcNode, t, 1000, false, true)
 }
 
-func deepCopySpeedTestHelper(srcNode *JsonNode, t *testing.T, loop int, doOld, doNew bool) {
+func deepCopySpeedTestHelper(srcNode *decode.JsonNode, t *testing.T, loop int, doOld, doNew bool) {
 	path := "test_data/deepcopy_test/pprof_result"
 	name := ""
 	var err error
@@ -116,7 +120,7 @@ func deepCopySpeedTestHelper(srcNode *JsonNode, t *testing.T, loop int, doOld, d
 	startTime := time.Now().UnixNano()
 	for i := 0; i < loop; i++ {
 		if doOld {
-			oldCopyRes := new(JsonNode)
+			oldCopyRes := new(decode.JsonNode)
 			err = oldDeepCopy(oldCopyRes, srcNode)
 			if err != nil {
 				t.Errorf("fail to copy by old function: %v", err)

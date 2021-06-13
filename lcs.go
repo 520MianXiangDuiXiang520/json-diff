@@ -1,5 +1,9 @@
 package json_diff
 
+import (
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
+)
+
 func max(a, b int) int {
 	if a < b {
 		return b
@@ -7,11 +11,11 @@ func max(a, b int) int {
 	return a
 }
 
-func longestCommonSubsequence(first, second []*JsonNode) []*JsonNode {
+func longestCommonSubsequence(first, second []*decode.JsonNode) []*decode.JsonNode {
 	line := len(first) + 1
 	column := len(second) + 1
 	if line == 1 || column == 1 {
-		return make([]*JsonNode, 0)
+		return make([]*decode.JsonNode, 0)
 	}
 	dp := make([][]int, line)
 	for i := 0; i < line; i++ {
@@ -29,7 +33,7 @@ func longestCommonSubsequence(first, second []*JsonNode) []*JsonNode {
 	// printDP(dp)
 	start, end := len(first), len(second)
 	cur := dp[start][end] - 1
-	res := make([]*JsonNode, cur+1)
+	res := make([]*decode.JsonNode, cur+1)
 	for cur >= 0 {
 		if end >= 0 && start >= 0 &&
 			dp[start][end] == dp[start][end-1] &&

@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
 	"sort"
 	"strings"
 )
@@ -21,21 +22,21 @@ func hash(v interface{}) string {
 	return hashByMD5([]byte(fmt.Sprintf("%v", v)))
 }
 
-func setHash(node *JsonNode) string {
+func setHash(node *decode.JsonNode) string {
 	var hashCode string
 	switch node.Type {
-	case JsonNodeTypeObject:
+	case decode.JsonNodeTypeObject:
 		hashCode = setObjectHash(node)
-	case JsonNodeTypeSlice:
+	case decode.JsonNodeTypeSlice:
 		hashCode = setSliceHash(node)
-	case JsonNodeTypeValue:
+	case decode.JsonNodeTypeValue:
 		hashCode = hash(node.Value)
 		node.Hash = hashCode
 	}
 	return hashCode
 }
 
-func setObjectHash(node *JsonNode) string {
+func setObjectHash(node *decode.JsonNode) string {
 	hashList := make([]string, len(node.ChildrenMap))
 	for _, v := range node.ChildrenMap {
 		hc := setHash(v)
@@ -47,7 +48,7 @@ func setObjectHash(node *JsonNode) string {
 	return hashCode
 }
 
-func setSliceHash(node *JsonNode) string {
+func setSliceHash(node *decode.JsonNode) string {
 	h := bytes.NewBufferString("")
 	for _, v := range node.Children {
 		hc := setHash(v)

@@ -2,27 +2,32 @@ package json_diff
 
 import (
 	"fmt"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
 	"io/ioutil"
+	"log"
 	"testing"
 )
 
 func ExampleAsDiffs() {
 	json1 := `{
         "A": 1,
-        "B": [1, 2, 3],
+        "B": [1, 2, 3, {"1": 2}],
         "C": {
           "CA": 1
         }
       }`
 	json2 := `{
         "A": 2,
-        "B": [1, 2, 4],
+        "B": [{"1": 2}, 1, {"1": 2}, 4],
         "C": {
           "CA": {"CAA": 1}
         }
       }`
-	res, _ := AsDiffs([]byte(json1), []byte(json2), UseMoveOption, UseCopyOption, UseFullRemoveOption)
-	fmt.Println(res)
+	res, err := AsDiffs([]byte(json1), []byte(json2), UseMoveOption, UseCopyOption, UseFullRemoveOption)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(res))
 }
 
 func ExampleMergeDiff() {
@@ -45,20 +50,20 @@ func ExampleMergeDiff() {
 
 func Test_merge_smoke(t *testing.T) {
 	type args struct {
-		srcNode  *JsonNode
-		diffNode *JsonNode
+		srcNode  *decode.JsonNode
+		diffNode *decode.JsonNode
 	}
 	type testCase struct {
 		name string
 		args args
-		want *JsonNode
+		want *decode.JsonNode
 	}
 	fileName := "./test_data/mergeSmoke.json"
 	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	caseNode, _ := Unmarshal(input)
+	caseNode, _ := decode.Unmarshal(input)
 	cases := caseNode.ChildrenMap["cases"]
 	testCases := make([]testCase, len(cases.Children))
 	for i, tt := range cases.Children {
@@ -77,7 +82,7 @@ func Test_merge_smoke(t *testing.T) {
 	}
 	for _, cs := range testCases {
 		t.Run(cs.name, func(t *testing.T) {
-			src := new(JsonNode)
+			src := new(decode.JsonNode)
 			src, err := DeepCopy(cs.args.srcNode)
 			if err != nil {
 				t.Errorf("fail to deepcopy src object")
@@ -96,12 +101,12 @@ func Test_merge_smoke(t *testing.T) {
 	}
 }
 
-func m(n *JsonNode) []byte {
+func m(n *decode.JsonNode) []byte {
 	r, _ := Marshal(n)
 	return r
 }
 
-func getOptions(n *JsonNode) []JsonDiffOption {
+func getOptions(n *decode.JsonNode) []JsonDiffOption {
 	res := make([]JsonDiffOption, len(n.Children))
 	for i, v := range n.Children {
 		res[i] = JsonDiffOption(v.Value.(float64))
@@ -120,12 +125,12 @@ func TestGetDiff(t *testing.T) {
 	if err != nil {
 		t.Error("fail to open the ", fileName)
 	}
-	caseNode, _ := Unmarshal(input)
+	caseNode, _ := decode.Unmarshal(input)
 	cases := caseNode.ChildrenMap["cases"].Children
 	type ts struct {
 		name    string
 		args    args
-		want    *JsonNode
+		want    *decode.JsonNode
 		wantErr bool
 	}
 	tss := make([]ts, len(cases))
@@ -149,8 +154,8 @@ func TestGetDiff(t *testing.T) {
 	}
 	for _, tt := range tss {
 		t.Run(tt.name, func(t *testing.T) {
-			src, _ := Unmarshal(tt.args.source)
-			pat, _ := Unmarshal(tt.args.patch)
+			src, _ := decode.Unmarshal(tt.args.source)
+			pat, _ := decode.Unmarshal(tt.args.patch)
 			diffs := GetDiffNode(src, pat, tt.args.options...)
 			if !eq(diffs, tt.want) {
 				got, _ := Marshal(diffs)
@@ -161,7 +166,7 @@ func TestGetDiff(t *testing.T) {
 	}
 }
 
-func eq(a, b *JsonNode) bool {
+func eq(a, b *decode.JsonNode) bool {
 	aList := a.Children
 	bList := b.Children
 	for i := 0; i < len(aList); i++ {

@@ -1,86 +1,61 @@
 package json_diff
 
 import (
-    "fmt"
-    `log`
-    "testing"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
+	"io/ioutil"
+	"testing"
 )
 
-func Test_keyReplace(t *testing.T) {
-	type args struct {
-		key string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{"common", args{key: "article~1a~01~001name"}, "article~01a~001~0001name"},
-		{"common1", args{key: "01~1"}, "01~01"},
-		{"common2", args{key: "0101~"}, "0101~"},
-		{"common3", args{key: "0101/01"}, "0101~101"},
-		{"common4", args{key: "0101/01~01"}, "0101~101~001"},
-		{"common5", args{key: "article/name"}, "article~1name"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := keyReplace(tt.args.key); got != tt.want {
-				t.Errorf("keyReplace() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_keyRestore(t *testing.T) {
-	type args struct {
-		key string
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		{"common", args{key: "article~01a~001~0001name"}, "article~1a~01~001name"},
-		{"common1", args{key: "article~1name"}, "article/name"},
-		{"common2", args{key: "article_name"}, "article_name"},
-		{"common3", args{key: "article~1a~001~0001name"}, "article/a~01~001name"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := keyRestore(tt.args.key); got != tt.want {
-				t.Errorf("keyRestore() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func ExampleUnmarshal() {
-	json := `{
-        "A": 2,
-        "B": [1, 2, 4],
-        "C": {
-          "CA": {"CAA": 1}
-        }
-      }`
-	jsonNode, err := Unmarshal([]byte(json))
+func BenchmarkMarshal(b *testing.B) {
+	fileName := "./test_data/deepcopy_test/deepcopy_speed_test.json"
+	// fileName := "./test_data/hash_test.json"
+	input, err := ioutil.ReadFile(fileName)
 	if err != nil {
-	    log.Println(err)
-    }
-	fmt.Println(jsonNode)
+		b.Error("fail to open the ", fileName)
+	}
+	node, _ := decode.Unmarshal(input)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = decode.Marshal(node)
+	}
 }
 
-func TestUnmarshal(t *testing.T) {
-    t.Run("test nil input", func(t *testing.T) {
-        res, err := Unmarshal(nil)
-        if res != nil || err == nil {
-            t.Errorf("want res is nil && err not nil, but got res: %v, err: %v \n", res, err)
-        }
-    })
-    
-    t.Run("test Marshal input nil", func(t *testing.T) {
-        data, err := Marshal(nil)
-        if data != nil || err == nil {
-            t.Errorf("want res is nil && err not nil, but got res: %v, err: %v \n", data, err)
-        }
-    })
+func BenchmarkMarshalOld(b *testing.B) {
+	fileName := "./test_data/deepcopy_test/deepcopy_speed_test.json"
+	// fileName := "./test_data/hash_test.json"
+	input, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		b.Error("fail to open the ", fileName)
+	}
+	node, _ := Unmarshal(input)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Marshal(node)
+	}
+}
+
+func BenchmarkUnmarshal(b *testing.B) {
+	fileName := "./test_data/deepcopy_test/deepcopy_speed_test.json"
+	// fileName := "./test_data/hash_test.json"
+	input, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		b.Error("fail to open the ", fileName)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = decode.Unmarshal(input)
+	}
+}
+
+func BenchmarkUnmarshalOld(b *testing.B) {
+	fileName := "./test_data/deepcopy_test/deepcopy_speed_test.json"
+	// fileName := "./test_data/hash_test.json"
+	input, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		b.Error("fail to open the ", fileName)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = Unmarshal(input)
+	}
 }

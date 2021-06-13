@@ -1,10 +1,72 @@
-package json_diff
+/*
+ * Copyright 2021 Junebao
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
+
+package decode
 
 import (
+	"bytes"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+var keyReplaceRegexp = regexp.MustCompile(`~0*1`)
+
+// KeyReplace 转义 key 中的特殊字符
+// "/"    会被替换成 "~1"
+// "~1"   会被替换成 "~01"
+// "~01"  会被替换为 "~001"
+// "~001" 会被替换为 "~0001"
+// 依此类推
+func KeyReplace(key string) string {
+	resList := keyReplaceRegexp.FindAllStringIndex(key, -1)
+	buff := bytes.NewBufferString("")
+	pre := 0
+	for _, res := range resList {
+		buff.WriteString(key[pre:res[0]])
+		buff.WriteRune('~')
+		for i := 1; i < res[1]-res[0]; i++ {
+			buff.WriteRune('0')
+		}
+		buff.WriteRune('1')
+		pre = res[1]
+	}
+	buff.WriteString(key[pre:])
+	return strings.ReplaceAll(buff.String(), "/", "~1")
+}
+
+func KeyRestore(key string) string {
+	key = strings.ReplaceAll(key, "~1", "/")
+	resList := keyReplaceRegexp.FindAllStringIndex(key, -1)
+	buff := bytes.NewBufferString("")
+	pre := 0
+	for _, res := range resList {
+		buff.WriteString(key[pre:res[0]])
+		buff.WriteRune('~')
+		for i := 3; i < res[1]-res[0]; i++ {
+			buff.WriteRune('0')
+		}
+		buff.WriteRune('1')
+		pre = res[1]
+	}
+	buff.WriteString(key[pre:])
+	return buff.String()
+}
 
 type JsonNodeType uint8
 
@@ -23,15 +85,15 @@ const (
 )
 
 func (jt JsonNodeType) String() string {
-    switch jt {
-    case JsonNodeTypeValue:
-        return "value"
-    case JsonNodeTypeSlice:
-        return "slice"
-    case JsonNodeTypeObject:
-        return "object"
-    }
-    return ""
+	switch jt {
+	case JsonNodeTypeValue:
+		return "value"
+	case JsonNodeTypeSlice:
+		return "slice"
+	case JsonNodeTypeObject:
+		return "object"
+	}
+	return ""
 }
 
 // JsonNode 以树的形式组织 Json 中的每一项数据。
@@ -51,13 +113,23 @@ func (jt JsonNodeType) String() string {
 // 一个 Json 字节数组可以使用 Unmarshal 反序列化为 JsonNode 对象，
 // JsonNode 对象也可以使用 Marshal 序列化为 Json 字节数组
 type JsonNode struct {
-	Type        JsonNodeType         `json:"type"`
-	Hash        string               `json:"hash"`
-	Key         string               `json:"key"`
-	Value       interface{}          `json:"value"`        // 保存 JsonNodeTypeValue 类型对象的值
-	Children    []*JsonNode          `json:"children"`     // 保存 JsonNodeTypeSlice 类型对象的值
-	ChildrenMap map[string]*JsonNode `json:"children_map"` // 保存 JsonNodeTypeObject 类型对象的值
-	Level       int64                `json:"level"`        // 该 node 所处的层级
+	Type          JsonNodeType         `json:"type"`
+	Hash          string               `json:"hash"`
+	Key           string               `json:"key"`
+	Value         interface{}          `json:"value"`        // 保存 JsonNodeTypeValue 类型对象的值
+	Children      []*JsonNode          `json:"children"`     // 保存 JsonNodeTypeSlice 类型对象的值
+	ChildrenMap   map[string]*JsonNode `json:"children_map"` // 保存 JsonNodeTypeObject 类型对象的值
+	Level         int64                `json:"level"`        // 该 node 所处的层级
+	originalValue []byte               // 保存反序列化时最原始的值，避免序列化动态类型转换
+}
+
+func newOriginalValueNode(ov []byte, value interface{}, level int) *JsonNode {
+	return &JsonNode{
+		Type:          JsonNodeTypeValue,
+		Value:         value,
+		Level:         int64(level),
+		originalValue: ov,
+	}
 }
 
 func NewObjectNode(key string, childrenMap map[string]*JsonNode, level int) *JsonNode {
@@ -134,6 +206,17 @@ func (jn *JsonNode) ADD(key interface{}, value *JsonNode) error {
 	return nil
 }
 
+// Append 为当前 JsonNodeTypeSlice 节点追加子对象。
+// 只能用于 JsonNodeTypeSlice 类型的节点。
+func (jn *JsonNode) Append(v *JsonNode) error {
+	if jn.Type != JsonNodeTypeSlice {
+		return GetJsonNodeError("append",
+			"cannot append an object to a node of type JsonNodeTypeSlice")
+	}
+	jn.Children = append(jn.Children, v)
+	return nil
+}
+
 // AddPath 为 node 的 path 路径处的对象添加一个子节点
 // path 路径表示的是子节点加入后的路径, 以 "/" 开头
 func AddPath(node *JsonNode, path string, value *JsonNode) error {
@@ -196,7 +279,7 @@ func (jn *JsonNode) Equal(patch *JsonNode) bool {
 func (jn *JsonNode) find(paths []string) (*JsonNode, bool) {
 	root := jn
 	for _, key := range paths {
-		key = keyRestore(key)
+		key = KeyRestore(key)
 		switch root.Type {
 		case JsonNodeTypeObject:
 			r, ok := root.ChildrenMap[key]
@@ -400,42 +483,42 @@ func CopyPath(node *JsonNode, from, path string) error {
 }
 
 func ATestPath(srcNode *JsonNode, path string, value *JsonNode) error {
-    f, ok := srcNode.Find(path)
-    if !ok {
-        return GetJsonNodeError("test", fmt.Sprintf("%s not find", path))
-    }
-    if f.Type != value.Type {
-        return GetJsonNodeError("test",
-            fmt.Sprintf("types are not equal, one is %s, another is %s",
-                f.Type.String(), value.Type.String()))
-    }
-    switch value.Type {
-    case JsonNodeTypeValue:
-        // [{"op": "test", "path": "a/b/c", "value":"123"}]
-        if f.Value != value.Value {
-            return GetJsonNodeError("test", valueAreNotEqual(f.Value, value.Value))
-        }
-    case JsonNodeTypeSlice:
-        // [{"op": "test", "path": "a/b/c", "value":[123, 456]}]
-        if len(f.Children) != len(value.Children) {
-            return GetJsonNodeError("test", valueAreNotEqual(f.Children, value.Children))
-        }
-        for i, v := range value.Children {
-            if !v.Equal(f.Children[i]) {
-                return GetJsonNodeError("test", valueAreNotEqual(v, f.Children[i]))
-            }
-        }
-    case JsonNodeTypeObject:
-        if len(f.ChildrenMap) != len(value.ChildrenMap) {
-            return GetJsonNodeError("test", valueAreNotEqual(f.ChildrenMap, value.ChildrenMap))
-        }
-        for k, v := range value.ChildrenMap {
-            if !v.Equal(f.ChildrenMap[k]) {
-                return GetJsonNodeError("test", valueAreNotEqual(v, f.ChildrenMap[k]))
-            }
-        }
-    }
-    return nil
+	f, ok := srcNode.Find(path)
+	if !ok {
+		return GetJsonNodeError("test", fmt.Sprintf("%s not find", path))
+	}
+	if f.Type != value.Type {
+		return GetJsonNodeError("test",
+			fmt.Sprintf("types are not equal, one is %s, another is %s",
+				f.Type.String(), value.Type.String()))
+	}
+	switch value.Type {
+	case JsonNodeTypeValue:
+		// [{"op": "test", "path": "a/b/c", "value":"123"}]
+		if f.Value != value.Value {
+			return GetJsonNodeError("test", valueAreNotEqual(f.Value, value.Value))
+		}
+	case JsonNodeTypeSlice:
+		// [{"op": "test", "path": "a/b/c", "value":[123, 456]}]
+		if len(f.Children) != len(value.Children) {
+			return GetJsonNodeError("test", valueAreNotEqual(f.Children, value.Children))
+		}
+		for i, v := range value.Children {
+			if !v.Equal(f.Children[i]) {
+				return GetJsonNodeError("test", valueAreNotEqual(v, f.Children[i]))
+			}
+		}
+	case JsonNodeTypeObject:
+		if len(f.ChildrenMap) != len(value.ChildrenMap) {
+			return GetJsonNodeError("test", valueAreNotEqual(f.ChildrenMap, value.ChildrenMap))
+		}
+		for k, v := range value.ChildrenMap {
+			if !v.Equal(f.ChildrenMap[k]) {
+				return GetJsonNodeError("test", valueAreNotEqual(v, f.ChildrenMap[k]))
+			}
+		}
+	}
+	return nil
 }
 
 func splitKey(node *JsonNode, path string) (string, *JsonNode, error) {
@@ -459,5 +542,5 @@ func keyMustCanBeConvertibleToInt(got interface{}) string {
 }
 
 func valueAreNotEqual(one, another interface{}) string {
-    return fmt.Sprintf("value are not equal, one is %v, another is %v", one, another)
+	return fmt.Sprintf("value are not equal, one is %v, another is %v", one, another)
 }

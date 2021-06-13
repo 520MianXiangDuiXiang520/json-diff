@@ -15,28 +15,28 @@
  *
  */
 
-package json_diff
+package decode
 
 import (
-    `fmt`
-    `github.com/pkg/errors`
+	"fmt"
+	"github.com/pkg/errors"
 )
 
 // BadDiffsError 在输入不合法的 diffs 串时被返回
 var BadDiffsError = errors.New("diffs format error")
 
 type JsonNodeError struct {
-    Op string
+	Op string
 }
 
 func (e *JsonNodeError) Error() string {
-    return fmt.Sprintf("fail to %s", e.Op)
+	return fmt.Sprintf("fail to %s", e.Op)
 }
 
 func GetJsonNodeError(op, msg string) error {
-    return errors.Wrap(&JsonNodeError{Op: op}, msg)
+	return errors.Wrap(&JsonNodeError{Op: op}, msg)
 }
 
 func WrapJsonNodeError(op string, err error) error {
-    return errors.Wrap(err, fmt.Sprintf("fail to %s", op))
+	return errors.Wrap(err, fmt.Sprintf("fail to %s", op))
 }

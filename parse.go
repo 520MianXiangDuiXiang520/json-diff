@@ -1,64 +1,19 @@
 package json_diff
 
 import (
-	"bytes"
 	"encoding/json"
-    `github.com/pkg/errors`
-    "regexp"
-	"strings"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
+	"github.com/pkg/errors"
 )
 
-var keyReplaceRegexp = regexp.MustCompile(`~0*1`)
-
-// key 中的
-// "/"    会被替换成 "~1"
-// "~1"   会被替换成 "~01"
-// "~01"  会被替换为 "~001"
-// "~001" 会被替换为 "~0001"
-// 依此类推
-func keyReplace(key string) string {
-	resList := keyReplaceRegexp.FindAllStringIndex(key, -1)
-	buff := bytes.NewBufferString("")
-	pre := 0
-	for _, res := range resList {
-		buff.WriteString(key[pre:res[0]])
-		buff.WriteRune('~')
-		for i := 1; i < res[1]-res[0]; i++ {
-			buff.WriteRune('0')
-		}
-		buff.WriteRune('1')
-		pre = res[1]
-	}
-	buff.WriteString(key[pre:])
-	return strings.ReplaceAll(buff.String(), "/", "~1")
-}
-
-func keyRestore(key string) string {
-	key = strings.ReplaceAll(key, "~1", "/")
-	resList := keyReplaceRegexp.FindAllStringIndex(key, -1)
-	buff := bytes.NewBufferString("")
-	pre := 0
-	for _, res := range resList {
-		buff.WriteString(key[pre:res[0]])
-		buff.WriteRune('~')
-		for i := 3; i < res[1]-res[0]; i++ {
-			buff.WriteRune('0')
-		}
-		buff.WriteRune('1')
-		pre = res[1]
-	}
-	buff.WriteString(key[pre:])
-	return buff.String()
-}
-
-func parse(v interface{}, level int64) *JsonNode {
-	var root *JsonNode
+func parse(v interface{}, level int64) *decode.JsonNode {
+	var root *decode.JsonNode
 	switch v.(type) {
 	case map[string]interface{}:
 		value := v.(map[string]interface{})
-		root = &JsonNode{Type: JsonNodeTypeObject, Level: level, ChildrenMap: make(map[string]*JsonNode)}
+		root = &decode.JsonNode{Type: decode.JsonNodeTypeObject, Level: level, ChildrenMap: make(map[string]*decode.JsonNode)}
 		for key, va := range value {
-			key = keyReplace(key)
+			key = decode.KeyReplace(key)
 			n := parse(va, level+1)
 			n.Key = key
 			// n.Father = root
@@ -66,7 +21,7 @@ func parse(v interface{}, level int64) *JsonNode {
 			// root.Children = append(root.Children, n)
 		}
 	case []interface{}:
-		root = &JsonNode{Type: JsonNodeTypeSlice, Level: level}
+		root = &decode.JsonNode{Type: decode.JsonNodeTypeSlice, Level: level}
 		value := v.([]interface{})
 		for _, va := range value {
 			n := parse(va, level+1)
@@ -74,15 +29,15 @@ func parse(v interface{}, level int64) *JsonNode {
 			root.Children = append(root.Children, n)
 		}
 	default:
-		root = &JsonNode{Type: JsonNodeTypeValue, Level: level}
-		root.Type = JsonNodeTypeValue
+		root = &decode.JsonNode{Type: decode.JsonNodeTypeValue, Level: level}
+		root.Type = decode.JsonNodeTypeValue
 		root.Value = v
 	}
 	return root
 }
 
 // Parse 于 Unmarshal 无异
-func Parse(input []byte) (*JsonNode, error) {
+func Parse(input []byte) (*decode.JsonNode, error) {
 	var v interface{}
 	if err := json.Unmarshal(input, &v); err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal")
@@ -90,63 +45,63 @@ func Parse(input []byte) (*JsonNode, error) {
 	return parse(v, 0), nil
 }
 
-func marshalValue(root *JsonNode) interface{} {
+func marshalValue(root *decode.JsonNode) interface{} {
 	return root.Value
 }
 
-func marshalObject(root *JsonNode) map[string]interface{} {
+func marshalObject(root *decode.JsonNode) map[string]interface{} {
 	dict := make(map[string]interface{})
 	for k, v := range root.ChildrenMap {
 		switch v.Type {
-		case JsonNodeTypeObject:
+		case decode.JsonNodeTypeObject:
 			dict[k] = marshalObject(v)
-		case JsonNodeTypeSlice:
+		case decode.JsonNodeTypeSlice:
 			dict[k] = marshalSlice(v)
-		case JsonNodeTypeValue:
+		case decode.JsonNodeTypeValue:
 			dict[k] = marshalValue(v)
 		}
 	}
 	return dict
 }
 
-func marshalSlice(root *JsonNode) []interface{} {
+func marshalSlice(root *decode.JsonNode) []interface{} {
 	res := make([]interface{}, len(root.Children))
 	for i, child := range root.Children {
 		switch child.Type {
-		case JsonNodeTypeValue:
+		case decode.JsonNodeTypeValue:
 			res[i] = marshalValue(child)
-		case JsonNodeTypeSlice:
+		case decode.JsonNodeTypeSlice:
 			res[i] = marshalSlice(child)
-		case JsonNodeTypeObject:
+		case decode.JsonNodeTypeObject:
 			res[i] = marshalObject(child)
 		}
 	}
 	return res
 }
 
+// Deprecated: 请使用 decode.UnMarshal
 // Unmarshal 将使用 json 编码的数据反序列化为 JsonNode 对象。
-func Unmarshal(input []byte) (*JsonNode, error) {
+func Unmarshal(input []byte) (*decode.JsonNode, error) {
 	return Parse(input)
 }
 
-// Marshal 将一个 JsonNode 对象序列化为 json 编码的字节数组
-// 当输入的 JsonNode 是 nil 时，Marshal 直接返回 nil
-func Marshal(root *JsonNode) ([]byte, error) {
-    if root == nil {
-        return nil, errors.New("can not marshal nil")
-    }
+// Deprecated: 请使用 decode.Marshal
+func Marshal(root *decode.JsonNode) ([]byte, error) {
+	if root == nil {
+		return nil, errors.New("can not marshal nil")
+	}
 	var dict interface{}
 	switch root.Type {
-	case JsonNodeTypeObject:
+	case decode.JsonNodeTypeObject:
 		dict = marshalObject(root)
-	case JsonNodeTypeSlice:
+	case decode.JsonNodeTypeSlice:
 		dict = marshalSlice(root)
-	case JsonNodeTypeValue:
+	case decode.JsonNodeTypeValue:
 		dict = marshalValue(root)
 	}
 	res, err := json.Marshal(dict)
 	if err != nil {
-	    return nil, errors.Wrap(err, "fail to marshal")
-    }
+		return nil, errors.Wrap(err, "fail to marshal")
+	}
 	return res, nil
 }

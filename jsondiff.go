@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/520MianXiangDuiXiang520/json-diff/decode"
 	"github.com/pkg/errors"
 	"strconv"
 )
 
-func diffSlice(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOption) {
+func diffSlice(diffs *diffs, path string, source, patch *decode.JsonNode, option JsonDiffOption) {
 	lcsList := longestCommonSubsequence(source.Children, patch.Children)
 	lcsIdx := 0
 	srcIdx := 0
@@ -77,7 +78,7 @@ func diffSlice(diffs *diffs, path string, source, patch *JsonNode, option JsonDi
 	}
 }
 
-func diffObject(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOption) {
+func diffObject(diffs *diffs, path string, source, patch *decode.JsonNode, option JsonDiffOption) {
 	for srcKey, srcValue := range source.ChildrenMap {
 		tarVal, tarOk := patch.ChildrenMap[srcKey]
 		currPath := fmt.Sprintf("%s/%s", path, srcKey)
@@ -97,7 +98,7 @@ func diffObject(diffs *diffs, path string, source, patch *JsonNode, option JsonD
 	}
 }
 
-func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOption) {
+func diff(diffs *diffs, path string, source, patch *decode.JsonNode, option JsonDiffOption) {
 	if source == nil && patch != nil {
 		diffs.add(newDiffNode(DiffTypeAdd, path, patch, "", option))
 	}
@@ -105,12 +106,12 @@ func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOpt
 		diffs.add(newDiffNode(DiffTypeRemove, path, nil, "", option))
 	}
 	if source != nil && patch != nil {
-		if source.Type == JsonNodeTypeObject && patch.Type == JsonNodeTypeObject {
+		if source.Type == decode.JsonNodeTypeObject && patch.Type == decode.JsonNodeTypeObject {
 			diffObject(diffs, path, source, patch, option)
-		} else if source.Type == JsonNodeTypeSlice && patch.Type == JsonNodeTypeSlice {
+		} else if source.Type == decode.JsonNodeTypeSlice && patch.Type == decode.JsonNodeTypeSlice {
 			diffSlice(diffs, path, source, patch, option)
 		} else {
-			// 两个都是 JsonNodeTypeSlice
+			// 两个都是 JsonNodeTypeValue
 			if !source.Equal(patch) {
 				diffs.add(newDiffNode(DiffTypeReplace, path, patch, "", option))
 			}
@@ -119,7 +120,7 @@ func diff(diffs *diffs, path string, source, patch *JsonNode, option JsonDiffOpt
 }
 
 // GetDiffNode 比较两个 JsonNode 之间的差异，并返回 JsonNode 格式的差异结果
-func GetDiffNode(sourceJsonNode, patchJsonNode *JsonNode, options ...JsonDiffOption) *JsonNode {
+func GetDiffNode(sourceJsonNode, patchJsonNode *decode.JsonNode, options ...JsonDiffOption) *decode.JsonNode {
 	option := JsonDiffOption(0)
 	for _, o := range options {
 		option |= o
@@ -132,50 +133,56 @@ func GetDiffNode(sourceJsonNode, patchJsonNode *JsonNode, options ...JsonDiffOpt
 
 // AsDiffs 比较 patch 相比于 source 的差别，返回 json 格式的差异文档。
 func AsDiffs(source, patch []byte, options ...JsonDiffOption) ([]byte, error) {
-	sourceJsonNode, _ := Unmarshal(source)
-	patchJsonNode, _ := Unmarshal(patch)
+	sourceJsonNode, err := decode.Unmarshal(source)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to unmarshal src")
+	}
+	patchJsonNode, err := decode.Unmarshal(patch)
+	if err != nil {
+		return nil, errors.Wrap(err, "fail to unmarshal tar")
+	}
 	dict := marshalSlice(GetDiffNode(sourceJsonNode, patchJsonNode, options...))
 	return json.Marshal(dict)
 }
 
-func merge(srcNode, diffNode *JsonNode) error {
+func merge(srcNode, diffNode *decode.JsonNode) error {
 	for _, diff := range diffNode.Children {
-		if diff.Type != JsonNodeTypeObject {
-			return errors.WithStack(BadDiffsError)
+		if diff.Type != decode.JsonNodeTypeObject {
+			return errors.WithStack(decode.BadDiffsError)
 		}
 		op := diff.ChildrenMap["op"].Value
 		path := diff.ChildrenMap["path"].Value.(string)
 		switch op {
 		case "add":
-			err := AddPath(srcNode, path, diff.ChildrenMap["value"])
+			err := decode.AddPath(srcNode, path, diff.ChildrenMap["value"])
 			if err != nil {
 				return err
 			}
 		case "remove":
-			_, err := RemovePath(srcNode, path)
+			_, err := decode.RemovePath(srcNode, path)
 			if err != nil {
 				return err
 			}
 		case "replace":
 			val := diff.ChildrenMap["value"]
-			_, err := ReplacePath(srcNode, path, val)
+			_, err := decode.ReplacePath(srcNode, path, val)
 			if err != nil {
 				return err
 			}
 		case "move":
 			from := diff.ChildrenMap["from"].Value.(string)
-			_, err := MovePath(srcNode, from, path)
+			_, err := decode.MovePath(srcNode, from, path)
 			if err != nil {
 				return err
 			}
 		case "copy":
 			from := diff.ChildrenMap["from"].Value.(string)
-			err := CopyPath(srcNode, from, path)
+			err := decode.CopyPath(srcNode, from, path)
 			if err != nil {
 				return err
 			}
 		case "test":
-			err := ATestPath(srcNode, path, diff.ChildrenMap["value"])
+			err := decode.ATestPath(srcNode, path, diff.ChildrenMap["value"])
 			if err != nil {
 				return err
 			}
@@ -188,11 +195,11 @@ func merge(srcNode, diffNode *JsonNode) error {
 
 // MergeDiff 根据差异文档 diff 还原 source 的差异
 func MergeDiff(source, diff []byte) ([]byte, error) {
-	diffNode, err := Unmarshal(diff)
+	diffNode, err := decode.Unmarshal(diff)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal diff data")
 	}
-	srcNode, err := Unmarshal(source)
+	srcNode, err := decode.Unmarshal(source)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal source data")
 	}
@@ -200,16 +207,16 @@ func MergeDiff(source, diff []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to merge diff")
 	}
-	return Marshal(result)
+	return decode.Marshal(result)
 }
 
 // MergeDiffNode 将 JsonNode 类型的 diffs 应用于源 source 上，并返回合并后的新 jsonNode 对象
 // 如果 diffs 不合法，第二个参数将会返回 BadDiffsError
-func MergeDiffNode(source, diffs *JsonNode) (*JsonNode, error) {
+func MergeDiffNode(source, diffs *decode.JsonNode) (*decode.JsonNode, error) {
 	if diffs == nil {
 		return source, nil
 	}
-	if diffs.Type != JsonNodeTypeSlice {
+	if diffs.Type != decode.JsonNodeTypeSlice {
 		return nil, errors.New("bad diffs")
 	}
 	copyNode, err := DeepCopy(source)

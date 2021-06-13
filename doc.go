@@ -15,5 +15,5 @@
  *
  */
 
-// Package json-diff : Go language implementation of RFC6902 https://tools.ietf.org/html/rfc6902
+// Package json_diff : Go language implementation of RFC6902 https://tools.ietf.org/html/rfc6902
 package json_diff
