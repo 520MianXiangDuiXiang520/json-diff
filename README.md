@@ -1,6 +1,6 @@
 # Json-Diff
 
-[RFC 6092](https://tools.ietf.org/html/rfc6902) 的 Go 语言实现
+[RFC 6902](https://tools.ietf.org/html/rfc6902) 的 Go 语言实现
 
 [![GoDoc](https://camo.githubusercontent.com/ba58c24fb3ac922ec74e491d3ff57ebac895cf2deada3bf1c9eebda4b25d93da/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f67616d6d617a65726f2f776f726b6572706f6f6c3f7374617475732e737667)](https://pkg.go.dev/github.com/520MianXiangDuiXiang520/json-diff)
 
@@ -108,7 +108,7 @@ func ExampleMergeDiff() {
    ]
 ```
 
-其中数组中的每一项代表一个差异点，格式由 RFC 6092 定义，op 表示差异类型，有六种：
+其中数组中的每一项代表一个差异点，格式由 RFC 6902 定义，op 表示差异类型，有六种：
 
 1. `add`: 新增
 2. `replace`: 替换
