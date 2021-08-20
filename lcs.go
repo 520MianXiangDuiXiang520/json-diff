@@ -30,25 +30,21 @@ func longestCommonSubsequence(first, second []*decode.JsonNode) []*decode.JsonNo
 			}
 		}
 	}
-	// printDP(dp)
 	start, end := len(first), len(second)
 	cur := dp[start][end] - 1
 	res := make([]*decode.JsonNode, cur+1)
+
+	// fix issue #5 (https://github.com/520MianXiangDuiXiang520/json-diff/issues/5)
 	for cur >= 0 {
-		if end >= 0 && start >= 0 &&
-			dp[start][end] == dp[start][end-1] &&
-			dp[start][end] == dp[start-1][end] {
-			start--
+		if end > 0 && dp[start][end] == dp[start][end-1] {
 			end--
-		} else if end >= 0 && dp[start][end] == dp[start][end-1] {
-			end--
-		} else if start >= 0 && dp[start][end] == dp[start-1][end] {
+		} else if start > 0 && dp[start][end] == dp[start-1][end] {
 			start--
 		} else {
 			res[cur] = first[start-1]
-			cur--
 			start--
 			end--
+			cur--
 		}
 	}
 

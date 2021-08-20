@@ -182,3 +182,13 @@ func eq(a, b *decode.JsonNode) bool {
 	}
 	return true
 }
+
+func TestAsDiffsIssue5(t *testing.T) {
+	json1 := `{"A": 1, "B": [1, 2, 3], "C": [1, 2]}`
+	json2 := `{"A": 1, "B": [1, 3], "C": [2, 1], "D": 6}`
+	diffs, err := AsDiffs([]byte(json1), []byte(json2), UseMoveOption, UseCopyOption, UseFullRemoveOption)
+	if err != nil {
+		t.Error("got an error", err)
+	}
+	fmt.Println(string(diffs))
+}

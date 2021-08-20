@@ -212,6 +212,9 @@ func computeUnChangeNode(container *unChangeContainer, path string, src, target 
 
 func computeSliceUnChange(contains *unChangeContainer, path string, src, target *decode.JsonNode) {
 	for i, v := range src.Children {
+		if i >= len(target.Children) {
+			return
+		}
 		computeUnChangeNode(contains, fmt.Sprintf("%s/%d", path, i), v, target.Children[i])
 	}
 }

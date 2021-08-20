@@ -312,6 +312,34 @@
       "options": [
         8
       ]
+    },
+    {
+      "name": "issues#5",
+      "src": {
+        "A": [
+          1,
+          2
+        ]
+      },
+      "patch": {
+        "A": [
+          2,
+          1
+        ]
+      },
+      "want": [
+        {
+          "op": "remove",
+          "path": "/A/0"
+        },
+        {
+          "op": "add",
+          "path": "/A/1",
+          "value": 1
+        }
+      ],
+      "want-error": false,
+      "options": []
     }
   ]
 }
