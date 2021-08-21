@@ -133,11 +133,13 @@ func GetDiffNode(sourceJsonNode, patchJsonNode *decode.JsonNode, options ...Json
 
 // AsDiffs 比较 patch 相比于 source 的差别，返回 json 格式的差异文档。
 func AsDiffs(source, patch []byte, options ...JsonDiffOption) ([]byte, error) {
-	sourceJsonNode, err := decode.Unmarshal(source)
+	// sourceJsonNode, err := decode.Unmarshal(source)
+    sourceJsonNode, err := Unmarshal(source)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal src")
 	}
-	patchJsonNode, err := decode.Unmarshal(patch)
+	// patchJsonNode, err := decode.Unmarshal(patch)
+    patchJsonNode, err := Unmarshal(patch)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal tar")
 	}
@@ -195,11 +197,13 @@ func merge(srcNode, diffNode *decode.JsonNode) error {
 
 // MergeDiff 根据差异文档 diff 还原 source 的差异
 func MergeDiff(source, diff []byte) ([]byte, error) {
-	diffNode, err := decode.Unmarshal(diff)
-	if err != nil {
+	// diffNode, err := decode.Unmarshal(diff)
+    diffNode, err := Unmarshal(diff)
+    if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal diff data")
 	}
-	srcNode, err := decode.Unmarshal(source)
+	// srcNode, err := decode.Unmarshal(source)
+    srcNode, err := Unmarshal(source)
 	if err != nil {
 		return nil, errors.Wrap(err, "fail to unmarshal source data")
 	}

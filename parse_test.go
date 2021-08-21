@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/520MianXiangDuiXiang520/json-diff/decode"
     `io/ioutil`
-    
-    // "io/ioutil"
 	"testing"
 )
 
