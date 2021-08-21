@@ -171,7 +171,7 @@ func (l *jsonParser) tokenizer() error {
 				return errors.WithStack(err)
 			}
 			i = (*l).off
-		case '\n', ' ', '\r':
+		case '\n', ' ', '\r', 9:
 			i++
 			l.off++
 		default:
