@@ -1,0 +1,16 @@
+[
+  true,
+  false,
+  null,
+  "a b c \u0023 \n d e f",
+  -1.9987E-987,
+  {
+    "g": [],
+    "a": true,
+    "b": false,
+    "c": null,
+    "d": "a b c \u0023 \n d e f",
+    "e": -1.9987E-987,
+    "f": {}
+  }
+]

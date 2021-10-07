@@ -1,0 +1,74 @@
+{
+  "name": "GetDiffTest",
+  "cases": [
+    {
+      "name": "replace",
+      "src": {
+        "A": 1.3E00,
+        "B": [1, 2, 3],
+        "C": {
+          "CA": 1
+        }
+      },
+      "patch": {
+        "A": 1.2,
+        "B": [1, 2, 4],
+        "C": {
+          "CA": {"CAA": 1}
+        }
+      },
+      "want": [
+        {
+          "op": "replace",
+          "path": "\/",
+          "value": 2
+        },
+        {
+          "op": "replace",
+          "path": "/B/2",
+          "value": 4
+        },
+        {
+          "op": "replace",
+          "path": "/C/CA",
+          "value": {"CAA": 1}
+        }
+      ],
+      "want-error": false,
+      "options": []
+    },
+    {
+      "name": "copy",
+      "src": {
+        "A": 1,
+        "B": [1, 2, 3],
+        "C": {
+          "CA": {"CAA": 1}
+        }
+      },
+      "patch": {
+        "A": 1,
+        "B": [1, 2, 3],
+        "C": {
+          "CA": {"CAA": 1},
+          "CB": {"CAA": 1}
+        },
+        "D": [1, 2, 3]
+      },
+      "want": [
+        {
+          "op": "copy",
+          "path": "/C/CB",
+          "from": "/C/CA"
+        },
+        {
+          "op": "copy",
+          "path": "/D",
+          "from": "/B"
+        }
+      ],
+      "want-error": false,
+      "options": [1]
+    }
+  ]
+}
